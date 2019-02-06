@@ -71,7 +71,7 @@ const parseFileName = (resource, name, params) => {
 const parseParams = (params) => {
     let str = "";
     for (let k in params) {
-        if (params[k] != null && params[k] !== "")
+        if (params[k] != null && params[k] !== "" && params[k] !== "0" && params[k] !== 0 && params[k] !== "N" && params[k] !== "Y" && params[k] !== "Base")
             str = str + "_" + k + "-" + params[k]
     }
     return str;

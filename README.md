@@ -1,0 +1,1 @@
+A Chrome Extension for downloading stats.nba.com api requests as CSVs
