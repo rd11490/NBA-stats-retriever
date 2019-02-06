@@ -1,0 +1,124 @@
+let Http;
+
+
+chrome.contextMenus.create({
+    id: 'getApiCalls',
+    title: 'Download Data',
+    contexts: ['all']
+  });
+
+chrome.contextMenus.onClicked.addListener(() => {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        let requests = tabStorage[tabs[0].id].requests;
+        for (let key in requests) {
+            Http = new XMLHttpRequest();
+            makeRequest(Http, requests[key].url)
+        }
+    });
+});
+
+chrome.tabs.onUpdated.addListener(function
+        (tabId, changeInfo, tab) {
+        // read changeInfo data and do something with it (like read the url)
+        if (changeInfo.url) {
+            tabStorage[tabId].requests = {};
+        }
+    }
+);
+
+
+const makeRequest = (Http, url) => {
+    if (window.confirm("Do you really want to Download: " + url)) {
+        Http.open("GET", url);
+        Http.send();
+        Http.onload=(e)=> {
+            let json = JSON.parse(Http.responseText);
+            let params = json.parameters;
+            let resultSets = getResultSets(json);
+            for (let resSetKey in resultSets) {
+                let fileResults = resultSets[resSetKey];
+                let fileName = parseFileName(json.resource, fileResults.name, params);
+                let headers = fileResults.headers;
+                let rowData = fileResults.rowSet;
+
+                let csvContent = "";
+                csvContent += makeRowToCsv(headers);
+                rowData.forEach(function (row) {
+                    if (row != null) {
+                        csvContent += makeRowToCsv(row);
+                    }
+                });
+
+                let csvData = new Blob([csvContent], {type: 'text/csv'});
+                let uri = URL.createObjectURL(csvData);
+
+                let link = document.createElement("a");
+                link.setAttribute("href", uri);
+                link.setAttribute("download", fileName);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+    }
+};
+
+const parseFileName = (resource, name, params) => {
+    return resource + "_" + name + "_" + parseParams(params)
+};
+
+const parseParams = (params) => {
+    let str = "";
+    for (let k in params) {
+        if (params[k] != null && params[k] !== "")
+            str = str + "_" + k + "-" + params[k]
+    }
+    return str;
+};
+
+const getResultSets = (json) => {
+    return json.resultSets != null ? json.resultSets : [json.resultSet];
+};
+
+const makeRowToCsv = (row) => {
+    let rowData = row.join(",");
+    return rowData + '\r\n';
+};
+
+const networkFilters = {
+    urls: [
+        "*://stats.nba.com/stats/*"
+    ]
+};
+const tabStorage = {};
+
+
+chrome.webRequest.onBeforeRequest.addListener((details) => {
+    const { tabId, requestId } = details;
+    if (!tabStorage.hasOwnProperty(tabId)) {
+        return;
+    }
+    tabStorage[tabId].requests[details.url] = {
+        url: details.url,
+    };
+}, networkFilters);
+
+chrome.tabs.onActivated.addListener((tab) => {
+    const tabId = tab ? tab.tabId : chrome.tabs.TAB_ID_NONE;
+    if (!tabStorage.hasOwnProperty(tabId)) {
+        tabStorage[tabId] = {
+            id: tabId,
+            requests: {},
+            registerTime: new Date().getTime()
+        };
+    }
+});
+
+chrome.tabs.onRemoved.addListener((tab) => {
+    const tabId = tab.tabId;
+    if (!tabStorage.hasOwnProperty(tabId)) {
+        return;
+    }
+    tabStorage[tabId] = null;
+});

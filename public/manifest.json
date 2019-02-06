@@ -1,0 +1,29 @@
+{
+  "manifest_version": 2,
+
+  "name": "NBA Data Retriever",
+  "description": "This extension is a starting point to create a real Chrome extension",
+  "version": "0.0.1",
+
+  "browser_action": {
+    "default_popup": "index.html",
+    "default_title": "Open the popup"
+  },
+  "icons": {
+    "16": "basketball.png",
+    "48": "basketball.png",
+    "128": "basketball.png"
+  },
+  "content_security_policy": "script-src 'self' 'sha256-GgRxrVOKNdB4LrRsVPDSbzvfdV4UqglmviH9GoBJ5jk='; object-src 'self'",
+  "permissions": [
+    "contextMenus",
+    "tabs",
+    "webRequest",
+    "*://stats.nba.com/"
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "web_accessible_resources" : ["*.html"]
+
+}
