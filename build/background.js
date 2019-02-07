@@ -5,10 +5,10 @@ chrome.contextMenus.create({
     id: 'getApiCalls',
     title: 'Download Data',
     contexts: ['all']
-  });
+});
 
 chrome.contextMenus.onClicked.addListener(() => {
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+    chrome.tabs.query({active: true, currentWindow: true}, function (tabs) {
         let requests = tabStorage[tabs[0].id].requests;
         for (let key in requests) {
             Http = new XMLHttpRequest();
@@ -28,26 +28,27 @@ chrome.tabs.onUpdated.addListener(function
 
 
 const makeRequest = (Http, url) => {
-    if (window.confirm("Do you really want to Download: " + url)) {
-        Http.open("GET", url);
-        Http.send();
-        Http.onload=(e)=> {
-            let json = JSON.parse(Http.responseText);
-            let params = json.parameters;
-            let resultSets = getResultSets(json);
-            for (let resSetKey in resultSets) {
-                let fileResults = resultSets[resSetKey];
-                let fileName = parseFileName(json.resource, fileResults.name, params);
-                let headers = fileResults.headers;
-                let rowData = fileResults.rowSet;
+    Http.open("GET", url);
+    Http.send();
+    Http.onload = (e) => {
+        let json = JSON.parse(Http.responseText);
+        let params = json.parameters;
+        let resultSets = getResultSets(json);
+        for (let resSetKey in resultSets) {
+            let fileResults = resultSets[resSetKey];
+            let fileName = parseFileName(json.resource, fileResults.name, params);
+            let headers = fileResults.headers;
+            let rowData = fileResults.rowSet;
 
-                let csvContent = "";
-                csvContent += makeRowToCsv(headers);
-                rowData.forEach(function (row) {
-                    if (row != null) {
-                        csvContent += makeRowToCsv(row);
-                    }
-                });
+            let csvContent = "";
+            csvContent += makeRowToCsv(headers);
+            rowData.forEach(function (row) {
+                if (row != null) {
+                    csvContent += makeRowToCsv(row);
+                }
+            });
+
+            if (window.confirm("Do you really want to Save Data From: " + json.resource + " - " + fileResults.name + "\n\n" + makeURLPretty(url))) {
 
                 let csvData = new Blob([csvContent], {type: 'text/csv'});
                 let uri = URL.createObjectURL(csvData);
@@ -82,20 +83,47 @@ const getResultSets = (json) => {
 };
 
 const makeRowToCsv = (row) => {
-    let rowData = row.join(",");
+    let rowData = row.map(function (v) {
+        if (typeof v === 'string' || v instanceof String) {
+            return v.replace(/,/g, "");
+        }
+        return v;
+    }).join(",");
     return rowData + '\r\n';
 };
+
+const makeURLPretty = (url) => {
+    try {
+        const splitUrl = url.split("?");
+        const base = splitUrl[0];
+        const params = splitUrl[1];
+
+        const paramsArray = params.split("&");
+
+        let paramString = paramsArray.filter((v) => {
+            return v[v.length - 1] !== '=';
+        }).join("\n");
+
+        return base + "\n\n" + "With parameters: \n" + paramString
+
+    } catch (e) {
+        return url;
+    }
+
+};
+
 
 const networkFilters = {
     urls: [
         "*://stats.nba.com/stats/*"
     ]
 };
+
 const tabStorage = {};
 
 
 chrome.webRequest.onBeforeRequest.addListener((details) => {
-    const { tabId, requestId } = details;
+    const {tabId, requestId} = details;
     if (!tabStorage.hasOwnProperty(tabId)) {
         return;
     }
