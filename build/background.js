@@ -36,8 +36,9 @@ const makeRequest = (Http, url) => {
         let resultSets = getResultSets(json);
         for (let resSetKey in resultSets) {
             let fileResults = resultSets[resSetKey];
+
             let fileName = parseFileName(json.resource, fileResults.name, params);
-            let headers = fileResults.headers;
+            let headers = parseHeaders(fileResults);
             let rowData = fileResults.rowSet;
 
             let csvContent = "";
@@ -65,6 +66,22 @@ const makeRequest = (Http, url) => {
     }
 };
 
+const parseHeaders = (fileResults) => {
+    let headers = fileResults.headers;
+    let cols = fileResults.rowSet[0].length;
+
+    if (headers.length === cols) {
+        return fileResults.headers
+    }
+    for (let k in fileResults.headers) {
+        if (fileResults.headers[k].columnNames.length === cols) {
+            return fileResults.headers[k].columnNames
+        }
+    }
+    return [];
+
+};
+
 const parseFileName = (resource, name, params) => {
     return resource + "_" + name + "_" + parseParams(params)
 };
@@ -79,7 +96,13 @@ const parseParams = (params) => {
 };
 
 const getResultSets = (json) => {
-    return json.resultSets != null ? json.resultSets : [json.resultSet];
+    if (json.resultSets == null) {
+        return [json.resultSet];
+    } else if (!Array.isArray(json.resultSets)) {
+        return [json.resultSets]
+    } else {
+        return json.resultSets
+    }
 };
 
 const makeRowToCsv = (row) => {
