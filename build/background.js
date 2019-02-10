@@ -10,7 +10,9 @@ chrome.contextMenus.create({
 chrome.contextMenus.onClicked.addListener(() => {
     chrome.tabs.query({active: true, currentWindow: true}, function (tabs) {
         let requests = tabStorage[tabs[0].id].requests;
+        console.log(requests)
         for (let key in requests) {
+            console.log(requests[key].url)
             Http = new XMLHttpRequest();
             makeRequest(Http, requests[key].url)
         }
@@ -20,8 +22,13 @@ chrome.contextMenus.onClicked.addListener(() => {
 chrome.tabs.onUpdated.addListener(function
         (tabId, changeInfo, tab) {
         // read changeInfo data and do something with it (like read the url)
+
         if (changeInfo.url) {
-            tabStorage[tabId].requests = {};
+            previousUrl = currentUrl;
+            currentUrl = changeInfo.url;
+            if (!(previousUrl.includes(currentUrl) || currentUrl.includes(previousUrl))){
+                tabStorage[tabId].requests = {};
+            }
         }
     }
 );
@@ -32,6 +39,9 @@ const makeRequest = (Http, url) => {
     Http.send();
     Http.onload = (e) => {
         let json = JSON.parse(Http.responseText);
+        console.log("making request")
+        console.log(url)
+        console.log(json)
         let params = json.parameters;
         let resultSets = getResultSets(json);
         for (let resSetKey in resultSets) {
@@ -143,6 +153,9 @@ const networkFilters = {
 };
 
 const tabStorage = {};
+
+let currentUrl = undefined;
+let previousUrl = undefined;
 
 
 chrome.webRequest.onBeforeRequest.addListener((details) => {
