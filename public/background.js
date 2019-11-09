@@ -1,6 +1,3 @@
-let Http;
-
-
 chrome.contextMenus.create({
     id: 'getApiCalls',
     title: 'Download Data',
@@ -13,8 +10,7 @@ chrome.contextMenus.onClicked.addListener(() => {
         console.log(requests)
         for (let key in requests) {
             console.log(requests[key].url)
-            Http = new XMLHttpRequest();
-            makeRequest(Http, requests[key].url)
+            makeRequest(requests[key].url)
         }
     });
 });
@@ -22,26 +18,56 @@ chrome.contextMenus.onClicked.addListener(() => {
 chrome.tabs.onUpdated.addListener(function
         (tabId, changeInfo, tab) {
         // read changeInfo data and do something with it (like read the url)
-
         if (changeInfo.url) {
             previousUrl = currentUrl;
             currentUrl = changeInfo.url;
-            if (!(previousUrl.includes(currentUrl) || currentUrl.includes(previousUrl))){
+            if (!previousUrl || !(previousUrl.includes(currentUrl) || currentUrl.includes(previousUrl))){
                 tabStorage[tabId].requests = {};
             }
         }
     }
 );
 
+const nbaHeaders = {
+    'Connection': 'keep-alive',
+    'Accept': 'application/json, text/plain, */*',
+    'x-nba-stats-token': 'true',
+    'X-NewRelic-ID': 'VQECWF5UChAHUlNTBwgBVw==',
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.87 Safari/537.36',
+    'x-nba-stats-origin': 'stats',
+    'Sec-Fetch-Site': 'same-origin',
+    'Sec-Fetch-Mode': 'cors',
+    'Referer': 'stats.nba.com',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Accept-Language': 'en-US,en;q=0.9',
+}
 
-const makeRequest = (Http, url) => {
-    Http.open("GET", url);
-    Http.send();
-    Http.onload = (e) => {
-        let json = JSON.parse(Http.responseText);
-        console.log("making request")
-        console.log(url)
-        console.log(json)
+const wnbaHeaders = {
+    'Connection': 'keep-alive',
+    'Accept': 'application/json, text/plain, */*',
+    'x-nba-stats-token': 'true',
+    'X-NewRelic-ID': 'VQECWF5UChAHUlNTBwgBVw==',
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.87 Safari/537.36',
+    'x-nba-stats-origin': 'stats',
+    'Sec-Fetch-Site': 'same-origin',
+    'Sec-Fetch-Mode': 'cors',
+    'Referer': 'stats.wnba.com',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Accept-Language': 'en-US,en;q=0.9',
+}
+
+const makeRequest = (url) => {
+    let headers = {}
+    if (url.includes('stats.wnba.com')) {
+        headers = wnbaHeaders
+    } else {
+        headers = nbaHeaders
+    }
+    console.log('Feting: ' + url);
+    fetch(url, {method: 'GET', headers}).then(r => {
+        console.log(r)
+        return r.json()
+    }).then(json => {
         let params = json.parameters;
         let resultSets = getResultSets(json);
         for (let resSetKey in resultSets) {
@@ -73,7 +99,7 @@ const makeRequest = (Http, url) => {
                 document.body.removeChild(link);
             }
         }
-    }
+    })
 };
 
 const parseHeaders = (fileResults) => {
@@ -148,7 +174,8 @@ const makeURLPretty = (url) => {
 
 const networkFilters = {
     urls: [
-        "*://stats.nba.com/stats/*"
+        "*://stats.nba.com/stats/*",
+        "*://stats.wnba.com/stats/*"
     ]
 };
 
@@ -186,3 +213,28 @@ chrome.tabs.onRemoved.addListener((tab) => {
     }
     tabStorage[tabId] = null;
 });
+
+chrome.webRequest.onBeforeSendHeaders.addListener(function(details){
+    if (details.url.includes('wnba')) {
+        var newRef = "https://stats.wnba.com";
+    } else {
+        var newRef = "https://stats.nba.com";
+    }
+    var gotRef = false;
+    for(var n in details.requestHeaders){
+        gotRef = details.requestHeaders[n].name.toLowerCase()=="referer";
+        if(gotRef){
+            details.requestHeaders[n].value = newRef;
+            break;
+        }
+    }
+    if(!gotRef){
+        details.requestHeaders.push({name:"Referer",value:newRef});
+    }
+    return {requestHeaders:details.requestHeaders};
+},{
+    urls:["https://stats.nba.com/*", "https://stats.wnba.com/*"]
+},[
+    "requestHeaders",
+    "blocking"
+]);
