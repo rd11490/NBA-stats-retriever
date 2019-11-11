@@ -3,7 +3,7 @@
 
   "name": "NBA Data Retriever",
   "description": "This extension allows you to download CSVs of the data on stats(dot)nba(dot)com",
-  "version": "0.0.8",
+  "version": "0.0.10",
 
   "browser_action": {
     "default_popup": "index.html",

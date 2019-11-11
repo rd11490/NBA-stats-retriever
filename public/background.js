@@ -1,3 +1,5 @@
+import fetch from 'node-fetch';
+
 chrome.contextMenus.create({
     id: 'getApiCalls',
     title: 'Download Data',
@@ -5,12 +7,13 @@ chrome.contextMenus.create({
 });
 
 chrome.contextMenus.onClicked.addListener(() => {
-    chrome.tabs.query({active: true, currentWindow: true}, function (tabs) {
+    chrome.tabs.query({active: true, currentWindow: true}, async function(tabs) {
         let requests = tabStorage[tabs[0].id].requests;
         console.log(requests)
         for (let key in requests) {
             console.log(requests[key].url)
             makeRequest(requests[key].url)
+            await sleep(1250)
         }
     });
 });
@@ -37,34 +40,35 @@ const nbaHeaders = {
     'x-nba-stats-origin': 'stats',
     'Sec-Fetch-Site': 'same-origin',
     'Sec-Fetch-Mode': 'cors',
-    'Referer': 'stats.nba.com',
+    // 'Referer': 'http://stats.nba.com',
     'Accept-Encoding': 'gzip, deflate, br',
-    'Accept-Language': 'en-US,en;q=0.9',
-}
+    'Accept-Language': 'en-US,en;q=0.9'
+};
 
 const wnbaHeaders = {
-    'Connection': 'keep-alive',
     'Accept': 'application/json, text/plain, */*',
     'x-nba-stats-token': 'true',
-    'X-NewRelic-ID': 'VQECWF5UChAHUlNTBwgBVw==',
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.87 Safari/537.36',
-    'x-nba-stats-origin': 'stats',
-    'Sec-Fetch-Site': 'same-origin',
-    'Sec-Fetch-Mode': 'cors',
-    'Referer': 'stats.wnba.com',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Accept-Language': 'en-US,en;q=0.9',
+    'X-NewRelic-ID': 'VQECWF5UChAHUlNTAQEAXg==',
+    'Referer': 'https://stats.wnba.com/game',
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3963.0 Safari/537.36',
+    'x-nba-stats-origin': 'stats'
 }
 
 const makeRequest = (url) => {
-    let headers = {}
+    let headers = {};
     if (url.includes('stats.wnba.com')) {
-        headers = wnbaHeaders
+        headers = wnbaHeaders;
     } else {
-        headers = nbaHeaders
+        headers = nbaHeaders;
     }
+
+    headers = {
+        ...headers,
+        Referer: url
+    }
+    console.log(headers);
     console.log('Feting: ' + url);
-    fetch(url, {method: 'GET', headers}).then(r => {
+    fetch(url, {method: 'GET', referrer: url,  headers}).then(r => {
         console.log(r)
         return r.json()
     }).then(json => {
@@ -181,6 +185,8 @@ const networkFilters = {
 
 const tabStorage = {};
 
+const data = {}
+
 let currentUrl = undefined;
 let previousUrl = undefined;
 
@@ -214,27 +220,6 @@ chrome.tabs.onRemoved.addListener((tab) => {
     tabStorage[tabId] = null;
 });
 
-chrome.webRequest.onBeforeSendHeaders.addListener(function(details){
-    if (details.url.includes('wnba')) {
-        var newRef = "https://stats.wnba.com";
-    } else {
-        var newRef = "https://stats.nba.com";
-    }
-    var gotRef = false;
-    for(var n in details.requestHeaders){
-        gotRef = details.requestHeaders[n].name.toLowerCase()=="referer";
-        if(gotRef){
-            details.requestHeaders[n].value = newRef;
-            break;
-        }
-    }
-    if(!gotRef){
-        details.requestHeaders.push({name:"Referer",value:newRef});
-    }
-    return {requestHeaders:details.requestHeaders};
-},{
-    urls:["https://stats.nba.com/*", "https://stats.wnba.com/*"]
-},[
-    "requestHeaders",
-    "blocking"
-]);
+const sleep = (milliseconds) => {
+    return new Promise(resolve => setTimeout(resolve, milliseconds))
+}
